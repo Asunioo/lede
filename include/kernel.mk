@@ -86,10 +86,14 @@ else ifneq (,$(findstring $(ARCH) , arceb ))
   LINUX_KARCH := arc
 else ifneq (,$(findstring $(ARCH) , armeb ))
   LINUX_KARCH := arm
+else ifneq (,$(findstring $(ARCH) , loongarch64 ))
+  LINUX_KARCH := loongarch
 else ifneq (,$(findstring $(ARCH) , mipsel mips64 mips64el ))
   LINUX_KARCH := mips
 else ifneq (,$(findstring $(ARCH) , powerpc64 ))
   LINUX_KARCH := powerpc
+else ifneq (,$(findstring $(ARCH) , riscv64 ))
+  LINUX_KARCH := riscv
 else ifneq (,$(findstring $(ARCH) , sh2 sh3 sh4 ))
   LINUX_KARCH := sh
 else ifneq (,$(findstring $(ARCH) , i386 x86_64 ))
@@ -146,6 +150,9 @@ define collect_module_symvers
 		grep -F $(PKG_BUILD_DIR) $(PKG_BUILD_DIR)/$$$$subdir/Module.symvers >> $(PKG_BUILD_DIR)/Module.symvers.tmp; \
 		[ "$(PKG_BUILD_DIR)" = "$$$$realdir" ] || \
 			grep -F $$$$realdir $(PKG_BUILD_DIR)/$$$$subdir/Module.symvers >> $(PKG_BUILD_DIR)/Module.symvers.tmp; \
+		[ -s "$(PKG_BUILD_DIR)/Module.symvers.tmp" ] || [ "$(KERNEL_PATCHVER)" = "6.18" ] && \
+			sed 's/\.o$$$$//' $(PKG_BUILD_DIR)/$$$$subdir/modules.order | \
+			grep -Ff - $(PKG_BUILD_DIR)/$$$$subdir/Module.symvers >> $(PKG_BUILD_DIR)/Module.symvers.tmp; \
 	done; \
 	sort -u $(PKG_BUILD_DIR)/Module.symvers.tmp > $(PKG_BUILD_DIR)/Module.symvers; \
 	mkdir -p $(PKG_SYMVERS_DIR); \
@@ -234,7 +241,7 @@ $(call KernelPackage/$(1)/config)
   $(call KernelPackage/depends)
   $(call KernelPackage/hooks)
 
-  ifneq ($(if $(filter-out %=y %=n %=m,$(KCONFIG)),$(filter m y,$(foreach c,$(filter-out %=y %=n %=m,$(KCONFIG)),$($(c)))),.),)
+  ifneq ($(if $(filter-out %=y %=n %=m,$(KCONFIG)),$(filter m y,$(foreach c,$(call version_filter,$(filter-out %=y %=n %=m,$(KCONFIG))),$($(c)))),.),)
     define Package/kmod-$(1)/install
 		  @for mod in $$(call version_filter,$$(FILES)); do \
 			if grep -q "$$$$$$$${mod##$(LINUX_DIR)/}" "$(LINUX_DIR)/modules.builtin"; then \
